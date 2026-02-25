@@ -1,52 +1,47 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
+import { createLoginCommand } from './commands/login.js';
+import { createLogoutCommand } from './commands/logout.js';
+import { createGroupsCommand } from './commands/groups.js';
+import { createEventsCommand } from './commands/events.js';
+import { createPollCommand } from './commands/poll.js';
+import { createKarmaCommand } from './commands/karma.js';
+import { showMainMenu } from './interactive.js';
 
 const program = new Command();
 
 program
   .name('pikarama')
   .description('CLI for Pikarama - karma-weighted group decisions')
-  .version('0.0.1');
+  .version('0.2.0');
 
-program
-  .command('login')
-  .description('Store your API token')
-  .action(() => {
-    console.log('🚧 Coming soon! Get your token at https://www.pikarama.com/settings');
-  });
+program.addCommand(createLoginCommand());
+program.addCommand(createLogoutCommand());
+program.addCommand(createGroupsCommand());
+program.addCommand(createEventsCommand());
+program.addCommand(createPollCommand());
+program.addCommand(createKarmaCommand());
 
-program
-  .command('groups')
-  .description('List your groups')
-  .action(() => {
-    console.log('🚧 Coming soon!');
-  });
+// Show interactive menu when no command is provided
+async function main() {
+  // Check if a subcommand was provided
+  const args = process.argv.slice(2);
+  const hasCommand = args.length > 0 && !args[0].startsWith('-');
+  
+  if (hasCommand) {
+    // Run commander normally
+    await program.parseAsync(process.argv);
+  } else if (args.includes('--help') || args.includes('-h') || args.includes('--version') || args.includes('-V')) {
+    // Let commander handle help/version
+    await program.parseAsync(process.argv);
+  } else {
+    // No command - show interactive menu
+    await showMainMenu();
+  }
+}
 
-program
-  .command('events')
-  .description('List active events')
-  .action(() => {
-    console.log('🚧 Coming soon!');
-  });
-
-program
-  .command('poll')
-  .description('Create a quick poll')
-  .argument('<topic-id>', 'Topic ID')
-  .argument('<question>', 'Poll question')
-  .option('-o, --option <option>', 'Poll option (repeat for multiple)', (val, acc: string[]) => [...acc, val], [])
-  .action((topicId, question, options) => {
-    console.log('🚧 Coming soon!');
-    console.log(`Would create poll: "${question}" in topic ${topicId}`);
-    console.log(`Options: ${options.option.join(', ')}`);
-  });
-
-program
-  .command('karma')
-  .description('View your karma')
-  .action(() => {
-    console.log('🚧 Coming soon!');
-  });
-
-program.parse();
+main().catch((error) => {
+  console.error('Failed to run CLI:', error);
+  process.exit(1);
+});
