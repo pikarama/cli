@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
+import { createRequire } from 'module';
 import { createLoginCommand } from './commands/login.js';
 import { createLogoutCommand } from './commands/logout.js';
 import { createGroupsCommand } from './commands/groups.js';
@@ -10,12 +11,15 @@ import { createKarmaCommand } from './commands/karma.js';
 import { createMeCommand } from './commands/me.js';
 import { showMainMenu } from './interactive.js';
 
+const require = createRequire(import.meta.url);
+const pkg = require('../package.json');
+
 const program = new Command();
 
 program
   .name('pikarama')
   .description('CLI for Pikarama - karma-weighted group decisions')
-  .version('0.2.0');
+  .version(pkg.version);
 
 program.addCommand(createLoginCommand());
 program.addCommand(createLogoutCommand());
