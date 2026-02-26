@@ -226,11 +226,14 @@ async function browseEvents(token: string, groupId?: string): Promise<void> {
   while (true) {
     const options: SelectOption[] = [
       { value: '_back', label: '← Back' },
-      ...events.map(e => ({
-        value: e.id,
-        label: e.name,
-        hint: `${e.topic?.icon || ''} ${e.topic?.name || ''} • ${e.status}`,
-      })),
+      ...events.map(e => {
+        const topicInfo = e.topic?.icon || e.topic?.name ? ` (${e.topic?.icon || ''} ${e.topic?.name || ''})` : '';
+        const statusEmoji = e.status === 'submitting' ? '📝' : e.status === 'voting' ? '🗳️' : '✅';
+        return {
+          value: e.id,
+          label: `${statusEmoji} ${e.name}${topicInfo}`,
+        };
+      }),
     ];
 
     const eventId = await p.select({
@@ -629,11 +632,14 @@ export async function selectEvent(token: string, status?: string): Promise<strin
     return null;
   }
 
-  const options: SelectOption[] = events.map(e => ({
-    value: e.id,
-    label: e.name,
-    hint: `${e.topic?.icon || ''} ${e.topic?.name || ''} • ${e.status}`,
-  }));
+  const options: SelectOption[] = events.map(e => {
+    const topicInfo = e.topic?.icon || e.topic?.name ? ` (${e.topic?.icon || ''} ${e.topic?.name || ''})` : '';
+    const statusEmoji = e.status === 'submitting' ? '📝' : e.status === 'voting' ? '🗳️' : '✅';
+    return {
+      value: e.id,
+      label: `${statusEmoji} ${e.name}${topicInfo}`,
+    };
+  });
 
   const result = await p.select({
     message: 'Select an event',
