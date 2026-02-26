@@ -1,6 +1,6 @@
 {
   "name": "@pikarama/cli",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Command-line interface for Pikarama - karma-weighted group decisions",
   "bin": {
     "pikarama": "./dist/index.js"
