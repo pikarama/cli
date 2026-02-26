@@ -379,9 +379,17 @@ async function createEventFlow(token: string, topicId?: string): Promise<void> {
   }
 
   try {
-    const result = await createEvent(token, topicId, name as string);
-    p.log.success('Event created!');
-    console.log(result);
+    const result = await createEvent(token, topicId, name as string) as {
+      event?: { id?: string; name?: string };
+      link?: string;
+    };
+    const eventId = result.event?.id || 'unknown';
+    const eventName = result.event?.name || name;
+    p.log.success(`Event created! (${eventId})`);
+    p.log.info(`\n🎯 ${eventName}`);
+    if (result.link) {
+      p.log.info(`🔗 ${result.link}`);
+    }
   } catch (error) {
     p.log.error(`Failed: ${error instanceof Error ? error.message : error}`);
   }
