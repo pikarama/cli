@@ -505,17 +505,27 @@ async function advanceEventFlow(token: string, eventId: string): Promise<void> {
 
 async function showKarma(token: string, groupId?: string): Promise<void> {
   try {
-    const response = await getKarma(token, groupId) as { karma?: Array<{ name?: string; karma?: number; topic?: { name: string } }> };
+    const response = await getKarma(token, groupId) as { 
+      karma?: Array<{ 
+        weight?: number; 
+        topic_name?: string; 
+        topic_icon?: string;
+        group_name?: string;
+      }> 
+    };
     const karma = response.karma || [];
 
     if (!karma.length) {
-      p.log.info('No karma data yet.');
+      p.log.info('No karma data yet. Win some decisions to earn karma!');
       return;
     }
 
-    p.log.info('\n⭐ Karma Standings:');
-    karma.forEach((k, i) => {
-      p.log.info(`  ${i + 1}. ${k.name || 'Unknown'} — ${k.karma || 0} karma ${k.topic ? `(${k.topic.name})` : ''}`);
+    p.log.info('\n⭐ Your Karma:');
+    karma.forEach((k) => {
+      const icon = k.topic_icon || '📋';
+      const topic = k.topic_name || 'Unknown topic';
+      const group = k.group_name ? ` (${k.group_name})` : '';
+      p.log.info(`  ${icon} ${topic}${group} — ${k.weight || 0} karma`);
     });
   } catch (error) {
     p.log.error(`Failed: ${error instanceof Error ? error.message : error}`);
