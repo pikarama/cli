@@ -160,6 +160,14 @@ export async function voteForSubmission(token: string, eventId: string, submissi
   });
 }
 
+export async function voteForSubmissions(token: string, eventId: string, submissionIds: string[]): Promise<unknown> {
+  return request(`/events/${eventId}/vote`, {
+    method: 'POST',
+    token,
+    payload: { submissionIds },
+  });
+}
+
 export async function advanceEvent(token: string, eventId: string): Promise<unknown> {
   return request(`/events/${eventId}/advance`, { method: 'POST', token });
 }

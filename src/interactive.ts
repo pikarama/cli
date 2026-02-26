@@ -1,5 +1,5 @@
 import * as p from '@clack/prompts';
-import { listGroups, listEvents, getGroup, getEvent, createEvent, createPoll, submitPick, voteForSubmission, advanceEvent, getKarma } from './api.js';
+import { listGroups, listEvents, getGroup, getEvent, createEvent, createPoll, submitPick, voteForSubmissions, advanceEvent, getKarma, ApiError } from './api.js';
 import { getConfig } from './config.js';
 
 export interface SelectOption {
@@ -474,13 +474,15 @@ async function voteFlow(
   spinner.start('Casting votes...');
 
   try {
-    for (const submissionId of selected as string[]) {
-      await voteForSubmission(token, eventId, submissionId);
-    }
+    await voteForSubmissions(token, eventId, selected as string[]);
     spinner.stop(`Cast ${(selected as string[]).length} vote(s)!`);
   } catch (error) {
     spinner.stop('Failed');
-    p.log.error(`${error instanceof Error ? error.message : error}`);
+    if (error instanceof ApiError && error.status === 409) {
+      p.log.warn('Already voted for all selected options.');
+    } else {
+      p.log.error(`${error instanceof Error ? error.message : error}`);
+    }
   }
 }
 
