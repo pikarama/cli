@@ -31,7 +31,9 @@ export async function showMainMenu(): Promise<void> {
       options: [
         { value: 'groups', label: '👥 Browse Groups', hint: 'View groups, topics, and members' },
         { value: 'events', label: '📋 Browse Events', hint: 'View and manage events' },
-        { value: 'poll', label: '📊 Create Poll', hint: 'Quick poll creation' },
+        { value: 'new_event', label: '➕ Create Event', hint: 'Start a new decision' },
+        { value: 'poll', label: '📊 Create Poll', hint: 'Quick poll with preset options' },
+        { value: 'repeat', label: '🔄 Repeat Event', hint: 'Rerun a past event' },
         { value: 'karma', label: '⭐ View Karma', hint: 'Check karma standings' },
         { value: 'logout', label: '🚪 Logout', hint: 'Clear saved credentials' },
         { value: 'exit', label: '← Exit' },
@@ -50,8 +52,14 @@ export async function showMainMenu(): Promise<void> {
       case 'events':
         await browseEvents(config.token);
         break;
+      case 'new_event':
+        await createEventFlow(config.token);
+        break;
       case 'poll':
         await createPollFlow(config.token);
+        break;
+      case 'repeat':
+        await repeatEventFlow(config.token);
         break;
       case 'karma':
         await showKarma(config.token);
@@ -256,6 +264,7 @@ async function browseEventActions(token: string, eventId: string): Promise<void>
       name: string;
       status: string;
       isPoll?: boolean;
+      topic?: { id: string; name: string };
       submissions?: Array<{ id: string; title?: string; by?: string; votes?: number }>;
       pollOptions?: Array<{ id: string; label: string; votes?: number }>;
     }
@@ -286,6 +295,10 @@ async function browseEventActions(token: string, eventId: string): Promise<void>
       options.push({ value: 'advance', label: '⏭️ Advance Phase', hint: 'Move to next phase' });
     }
 
+    if (event.status === 'completed') {
+      options.push({ value: 'repeat', label: '🔄 Repeat Event', hint: 'Start this event again' });
+    }
+
     options.push({ value: 'view', label: '👁️ View Details', hint: 'See submissions and votes' });
 
     const action = await p.select({
@@ -306,6 +319,20 @@ async function browseEventActions(token: string, eventId: string): Promise<void>
         break;
       case 'advance':
         await advanceEventFlow(token, eventId);
+        break;
+      case 'repeat':
+        if (event.topic?.id) {
+          try {
+            const result = await createEvent(token, event.topic.id, event.name) as {
+              event?: { id?: string };
+            };
+            p.log.success(`Event "${event.name}" repeated! (${result.event?.id || 'unknown'})`);
+          } catch (error) {
+            p.log.error(`Failed: ${error instanceof Error ? error.message : error}`);
+          }
+        } else {
+          p.log.error('Cannot repeat: missing topic information.');
+        }
         break;
       case 'view':
         showEventDetails(event);
@@ -415,6 +442,75 @@ async function createPollFlow(token: string, topicId?: string): Promise<void> {
     if (result.link) {
       p.log.info(`\n🔗 ${result.link}`);
     }
+  } catch (error) {
+    p.log.error(`Failed: ${error instanceof Error ? error.message : error}`);
+  }
+}
+
+async function repeatEventFlow(token: string): Promise<void> {
+  // Get completed events
+  const response = await listEvents(token, 'completed') as {
+    events?: Array<{
+      id: string;
+      name: string;
+      status: string;
+      topic?: { id: string; name: string; icon?: string };
+      group?: { id: string; name: string };
+    }>;
+  };
+  const completedEvents = response.events || [];
+
+  if (!completedEvents.length) {
+    p.log.warn('No completed events to repeat. Create a new event first.');
+    return;
+  }
+
+  // Get active events to filter out duplicates
+  const activeResponse = await listEvents(token, 'submitting,voting') as {
+    events?: Array<{ name: string; topic?: { id: string } }>;
+  };
+  const activeEvents = activeResponse.events || [];
+  const activeSet = new Set(activeEvents.map(e => `${e.topic?.id}:${e.name}`));
+
+  // Filter out events that already have an active version
+  const availableEvents = completedEvents.filter(e =>
+    !activeSet.has(`${e.topic?.id}:${e.name}`)
+  );
+
+  if (!availableEvents.length) {
+    p.log.warn('All past events already have active versions. Create a new event instead.');
+    return;
+  }
+
+  const options: SelectOption[] = [
+    { value: '_back', label: '← Back' },
+    ...availableEvents.slice(0, 15).map(e => {
+      const icon = e.topic?.icon || '🎯';
+      const topicName = e.topic?.name || '';
+      const groupName = e.group?.name || '';
+      return {
+        value: `${e.topic?.id}|${e.name}`,
+        label: `${icon} ${e.name} (${topicName} • ${groupName})`,
+      };
+    }),
+  ];
+
+  const selected = await p.select({
+    message: '🔄 Select an event to repeat',
+    options,
+  });
+
+  if (p.isCancel(selected) || selected === '_back') {
+    return;
+  }
+
+  const [topicId, eventName] = (selected as string).split('|');
+
+  try {
+    const result = await createEvent(token, topicId, eventName) as {
+      event?: { id?: string };
+    };
+    p.log.success(`Event "${eventName}" repeated! (${result.event?.id || 'unknown'})`);
   } catch (error) {
     p.log.error(`Failed: ${error instanceof Error ? error.message : error}`);
   }
