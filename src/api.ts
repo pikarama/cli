@@ -183,3 +183,22 @@ export async function createPoll(token: string, topicId: string, name: string, p
 export async function getKarma(token: string, groupId?: string): Promise<unknown> {
   return request('/karma', { method: 'GET', token, params: groupId ? { groupId } : undefined });
 }
+
+export interface MeResponse {
+  user: {
+    id: string;
+    name?: string;
+    email?: string;
+    image?: string;
+    created_at?: string;
+  };
+  stats: {
+    groups: number;
+    api_tokens: number;
+    webhooks: number;
+  };
+}
+
+export async function getMe(token: string): Promise<MeResponse> {
+  return request('/me', { method: 'GET', token });
+}

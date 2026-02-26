@@ -7,6 +7,7 @@ import { createGroupsCommand } from './commands/groups.js';
 import { createEventsCommand } from './commands/events.js';
 import { createPollCommand } from './commands/poll.js';
 import { createKarmaCommand } from './commands/karma.js';
+import { createMeCommand } from './commands/me.js';
 import { showMainMenu } from './interactive.js';
 
 const program = new Command();
@@ -22,6 +23,7 @@ program.addCommand(createGroupsCommand());
 program.addCommand(createEventsCommand());
 program.addCommand(createPollCommand());
 program.addCommand(createKarmaCommand());
+program.addCommand(createMeCommand());
 
 // Show interactive menu when no command is provided
 async function main() {
