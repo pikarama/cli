@@ -398,9 +398,20 @@ async function createPollFlow(token: string, topicId?: string): Promise<void> {
   }
 
   try {
-    const result = await createPoll(token, topicId, name as string, options);
-    p.log.success('Poll created!');
-    console.log(result);
+    const result = await createPoll(token, topicId, name as string, options) as {
+      event?: { id?: string; name?: string };
+      link?: string;
+    };
+    const eventId = result.event?.id || 'unknown';
+    const eventName = result.event?.name || name;
+    p.log.success(`Poll created! (${eventId})`);
+    p.log.info(`\n📊 ${eventName}`);
+    options.forEach((opt, i) => {
+      p.log.info(`   ${i + 1}. ${opt}`);
+    });
+    if (result.link) {
+      p.log.info(`\n🔗 ${result.link}`);
+    }
   } catch (error) {
     p.log.error(`Failed: ${error instanceof Error ? error.message : error}`);
   }
@@ -508,9 +519,8 @@ async function showKarma(token: string, groupId?: string): Promise<void> {
     const response = await getKarma(token, groupId) as { 
       karma?: Array<{ 
         weight?: number; 
-        topic_name?: string; 
-        topic_icon?: string;
-        group_name?: string;
+        topic?: { id?: string; name?: string; icon?: string };
+        group?: { id?: string; name?: string };
       }> 
     };
     const karma = response.karma || [];
@@ -522,9 +532,9 @@ async function showKarma(token: string, groupId?: string): Promise<void> {
 
     p.log.info('\n⭐ Your Karma:');
     karma.forEach((k) => {
-      const icon = k.topic_icon || '📋';
-      const topic = k.topic_name || 'Unknown topic';
-      const group = k.group_name ? ` (${k.group_name})` : '';
+      const icon = k.topic?.icon || '📋';
+      const topic = k.topic?.name || 'Unknown topic';
+      const group = k.group?.name ? ` (${k.group.name})` : '';
       p.log.info(`  ${icon} ${topic}${group} — ${k.weight || 0} karma`);
     });
   } catch (error) {
