@@ -41,11 +41,9 @@ export async function clearConfig(): Promise<void> {
   }
 }
 
-export function getConfig(): CliConfig | null {
-  // Synchronous version for quick checks
+export async function getConfig(): Promise<CliConfig | null> {
   try {
-    const fs = require('node:fs');
-    const contents = fs.readFileSync(CONFIG_PATH, 'utf-8');
+    const contents = await readFile(CONFIG_PATH, 'utf-8');
     return JSON.parse(contents) as CliConfig;
   } catch (error) {
     return null;

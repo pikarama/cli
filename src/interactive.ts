@@ -11,7 +11,7 @@ export interface SelectOption {
 // ============ Main Menu ============
 
 export async function showMainMenu(): Promise<void> {
-  const config = getConfig();
+  const config = await getConfig();
   
   if (!config?.token) {
     p.log.warn('Not logged in. Please run: pikarama login');
