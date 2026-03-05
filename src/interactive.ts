@@ -707,6 +707,13 @@ export async function selectTopic(token: string, groupId?: string): Promise<stri
     return null;
   }
 
+  // Auto-select if only one topic (common for free plans)
+  if (topics.length === 1) {
+    const topic = topics[0];
+    p.log.info(`Using topic: ${topic.icon || '📋'} ${topic.name}`);
+    return topic.id;
+  }
+
   const options: SelectOption[] = topics.map(t => ({
     value: t.id,
     label: `${t.icon || '📋'} ${t.name}`,

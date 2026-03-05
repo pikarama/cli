@@ -9,6 +9,7 @@ import { createEventsCommand } from './commands/events.js';
 import { createPollCommand } from './commands/poll.js';
 import { createKarmaCommand } from './commands/karma.js';
 import { createMeCommand } from './commands/me.js';
+import { createSchedulesCommand } from './commands/schedules.js';
 import { showMainMenu } from './interactive.js';
 
 const require = createRequire(import.meta.url);
@@ -28,6 +29,7 @@ program.addCommand(createEventsCommand());
 program.addCommand(createPollCommand());
 program.addCommand(createKarmaCommand());
 program.addCommand(createMeCommand());
+program.addCommand(createSchedulesCommand());
 
 // Show interactive menu when no command is provided
 async function main() {
