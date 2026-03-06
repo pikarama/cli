@@ -1,5 +1,5 @@
 import * as p from '@clack/prompts';
-import { listGroups, listEvents, getGroup, getEvent, createEvent, createPoll, submitPick, voteForSubmissions, advanceEvent, getKarma, ApiError } from './api.js';
+import { listGroups, listEvents, getGroup, getEvent, createEvent, createPoll, submitPick, voteForSubmissions, advanceEvent, getKarma, listSchedules, createSchedule, deleteSchedule, ApiError, Schedule } from './api.js';
 import { getConfig } from './config.js';
 
 export interface SelectOption {
@@ -34,6 +34,7 @@ export async function showMainMenu(): Promise<void> {
         { value: 'new_event', label: '➕ Create Event', hint: 'Start a new decision' },
         { value: 'poll', label: '📊 Create Poll', hint: 'Quick poll with preset options' },
         { value: 'repeat', label: '🔄 Repeat Event', hint: 'Rerun a past event' },
+        { value: 'schedules', label: '📅 Schedules', hint: 'Manage recurring events (Plus/Pro)' },
         { value: 'karma', label: '⭐ View Karma', hint: 'Check karma standings' },
         { value: 'logout', label: '🚪 Logout', hint: 'Clear saved credentials' },
         { value: 'exit', label: '← Exit' },
@@ -60,6 +61,9 @@ export async function showMainMenu(): Promise<void> {
         break;
       case 'repeat':
         await repeatEventFlow(config.token);
+        break;
+      case 'schedules':
+        await browseSchedules(config.token);
         break;
       case 'karma':
         await showKarma(config.token);
@@ -211,6 +215,250 @@ async function browseTopicActions(token: string, topicId: string, topicName: str
         break;
     }
   }
+}
+
+// ============ Schedules Flow ============
+
+async function browseSchedules(token: string): Promise<void> {
+  // First select a group
+  const groupId = await selectGroup(token);
+  if (!groupId) return;
+
+  while (true) {
+    let schedules: Schedule[] = [];
+    let upgradeRequired = false;
+
+    try {
+      const response = await listSchedules(token, groupId);
+      schedules = response.schedules || [];
+      upgradeRequired = response.upgradeRequired || false;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 403) {
+        p.log.warn('⬆️ Recurring events require Plus or Pro plan.');
+        p.log.info(`Upgrade at: https://www.pikarama.com/groups/${groupId}/settings/billing`);
+        return;
+      }
+      throw error;
+    }
+
+    if (upgradeRequired) {
+      p.log.warn('⬆️ Recurring events require Plus or Pro plan.');
+      p.log.info(`Upgrade at: https://www.pikarama.com/groups/${groupId}/settings/billing`);
+      return;
+    }
+
+    const options: SelectOption[] = [
+      { value: '_back', label: '← Back to main menu' },
+      { value: '_create', label: '➕ Create Schedule', hint: 'Set up a new recurring event' },
+    ];
+
+    if (schedules.length) {
+      schedules.forEach((s) => {
+        const icon = s.topic_icon || '📋';
+        const status = s.recurrence_active ? '🟢' : '⏸️';
+        options.push({
+          value: s.id,
+          label: `${status} ${icon} ${s.event_name}`,
+          hint: formatCron(s.recurrence_cron),
+        });
+      });
+    } else {
+      p.log.info('No recurring schedules configured yet.');
+    }
+
+    const selected = await p.select({
+      message: '📅 Schedules',
+      options,
+    });
+
+    if (p.isCancel(selected) || selected === '_back') {
+      return;
+    }
+
+    if (selected === '_create') {
+      await createScheduleFlow(token, groupId);
+      continue;
+    }
+
+    // Selected a schedule - show actions
+    const schedule = schedules.find((s) => s.id === selected);
+    if (schedule) {
+      await scheduleActionsFlow(token, groupId, schedule);
+    }
+  }
+}
+
+async function createScheduleFlow(token: string, groupId: string): Promise<void> {
+  // Fetch topics for this group
+  const response = await getGroup(token, groupId) as {
+    group?: { topics?: Array<{ id: string; name: string; icon?: string }> };
+  };
+  const topics = response.group?.topics || [];
+
+  if (!topics.length) {
+    p.log.warn('No topics in this group. Create one at pikarama.com first.');
+    return;
+  }
+
+  // Select topic
+  const topicOptions: SelectOption[] = topics.map((t) => ({
+    value: t.id,
+    label: `${t.icon || '📋'} ${t.name}`,
+  }));
+
+  const topicId = await p.select({
+    message: 'Select topic for recurring events',
+    options: topicOptions,
+  });
+
+  if (p.isCancel(topicId)) return;
+
+  // Event name
+  const eventName = await p.text({
+    message: 'Event name',
+    placeholder: 'e.g., Movie Friday',
+  });
+
+  if (p.isCancel(eventName) || !eventName) return;
+
+  // Schedule preset or custom
+  const scheduleChoice = await p.select({
+    message: 'When should this recur?',
+    options: [
+      { value: '0 18 * * 5', label: '🎬 Every Friday 6pm', hint: 'Movie night classic' },
+      { value: '0 12 * * 0', label: '🍳 Every Sunday noon', hint: 'Weekend brunch' },
+      { value: '0 19 * * 1-5', label: '🍽️ Weekdays 7pm', hint: 'Dinner decisions' },
+      { value: '0 10 * * 6', label: '☕ Every Saturday 10am', hint: 'Weekend morning' },
+      { value: '_custom', label: '⚙️ Custom cron', hint: 'Enter your own schedule' },
+    ],
+  });
+
+  if (p.isCancel(scheduleChoice)) return;
+
+  let cron = scheduleChoice as string;
+
+  if (scheduleChoice === '_custom') {
+    const customCron = await p.text({
+      message: 'Cron expression (minute hour * * day)',
+      placeholder: '0 18 * * 5 = Friday 6pm',
+    });
+
+    if (p.isCancel(customCron) || !customCron) return;
+    cron = customCron as string;
+  }
+
+  // Timing options
+  const submissionMin = await p.text({
+    message: 'Submission window (minutes before event)',
+    initialValue: '60',
+    placeholder: '60',
+  });
+
+  if (p.isCancel(submissionMin)) return;
+
+  const votingMin = await p.text({
+    message: 'Voting window (minutes before event)',
+    initialValue: '30',
+    placeholder: '30',
+  });
+
+  if (p.isCancel(votingMin)) return;
+
+  const spinner = p.spinner();
+  spinner.start('Creating schedule...');
+
+  try {
+    const result = await createSchedule(token, groupId, {
+      topicGroupId: topicId as string,
+      eventName: eventName as string,
+      recurrenceCron: cron,
+      submissionDurationMin: parseInt(submissionMin as string) || 60,
+      votingDurationMin: parseInt(votingMin as string) || 30,
+    });
+    spinner.stop(`Schedule created! (${result.schedule?.id || 'unknown'})`);
+  } catch (error) {
+    spinner.stop('Failed');
+    if (error instanceof ApiError) {
+      const body = error.body as { upgradeRequired?: boolean; limitReached?: boolean; currentCount?: number; limit?: number; error?: string };
+      if (body?.upgradeRequired) {
+        p.log.warn('⬆️ Recurring events require Plus or Pro plan.');
+      } else if (body?.limitReached) {
+        p.log.warn(`📊 Schedule limit reached (${body.currentCount}/${body.limit}). Upgrade to Pro for unlimited.`);
+      } else {
+        p.log.error(body?.error || error.message);
+      }
+    } else {
+      p.log.error(`${error instanceof Error ? error.message : error}`);
+    }
+  }
+}
+
+async function scheduleActionsFlow(token: string, groupId: string, schedule: Schedule): Promise<void> {
+  while (true) {
+    const status = schedule.recurrence_active ? '🟢 Active' : '⏸️ Paused';
+    
+    const action = await p.select({
+      message: `📅 ${schedule.event_name} (${status})`,
+      options: [
+        { value: '_back', label: '← Back to schedules' },
+        { value: 'view', label: '👁️ View Details', hint: 'See schedule configuration' },
+        { value: 'delete', label: '🗑️ Delete', hint: 'Remove this schedule' },
+      ],
+    });
+
+    if (p.isCancel(action) || action === '_back') {
+      return;
+    }
+
+    switch (action) {
+      case 'view':
+        showScheduleDetails(schedule);
+        break;
+      case 'delete':
+        const confirmed = await p.confirm({ message: `Delete schedule "${schedule.event_name}"?` });
+        if (p.isCancel(confirmed) || !confirmed) break;
+        
+        try {
+          await deleteSchedule(token, groupId, schedule.id);
+          p.log.success('Schedule deleted');
+          return; // Go back to schedule list
+        } catch (error) {
+          p.log.error(`Failed: ${error instanceof Error ? error.message : error}`);
+        }
+        break;
+    }
+  }
+}
+
+function showScheduleDetails(schedule: Schedule): void {
+  p.log.info(`\n📅 ${schedule.event_name}`);
+  p.log.info(`Topic: ${schedule.topic_icon || '📋'} ${schedule.topic_name}`);
+  p.log.info(`Schedule: ${formatCron(schedule.recurrence_cron)}`);
+  p.log.info(`Cron: ${schedule.recurrence_cron}`);
+  p.log.info(`Submission window: ${schedule.submission_duration_min} minutes`);
+  p.log.info(`Voting window: ${schedule.voting_duration_min} minutes`);
+  p.log.info(`Status: ${schedule.recurrence_active ? '🟢 Active' : '⏸️ Paused'}`);
+  if (schedule.next_run) {
+    p.log.info(`Next run: ${schedule.next_run}`);
+  }
+}
+
+function formatCron(cron: string): string {
+  // Basic cron to human-readable
+  const parts = cron.split(' ');
+  if (parts.length < 5) return cron;
+
+  const [minute, hour, , , dayOfWeek] = parts;
+  const days: Record<string, string> = {
+    '0': 'Sun', '1': 'Mon', '2': 'Tue', '3': 'Wed',
+    '4': 'Thu', '5': 'Fri', '6': 'Sat', '7': 'Sun',
+    '*': 'Daily', '1-5': 'Weekdays', '0,6': 'Weekends',
+  };
+
+  const dayText = days[dayOfWeek] || dayOfWeek;
+  const timeText = `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
+
+  return `${dayText} @ ${timeText}`;
 }
 
 // ============ Events Flow ============
