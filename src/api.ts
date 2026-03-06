@@ -202,3 +202,50 @@ export interface MeResponse {
 export async function getMe(token: string): Promise<MeResponse> {
   return request('/me', { method: 'GET', token });
 }
+
+// ============ Schedules ============
+
+export interface Schedule {
+  id: string;
+  event_name: string;
+  topic_name: string;
+  topic_icon: string;
+  topic_group_id: string;
+  recurrence_cron: string;
+  submission_duration_min: number;
+  voting_duration_min: number;
+  recurrence_active: boolean;
+  next_run?: string;
+}
+
+export interface SchedulesResponse {
+  schedules: Schedule[];
+  usage?: { count: number; limit: number | null };
+  upgradeRequired?: boolean;
+}
+
+export async function listSchedules(token: string, groupId: string): Promise<SchedulesResponse> {
+  return request(`/groups/${groupId}/schedules`, { method: 'GET', token });
+}
+
+export async function createSchedule(
+  token: string,
+  groupId: string,
+  payload: {
+    topicGroupId: string;
+    eventName: string;
+    recurrenceCron: string;
+    submissionDurationMin?: number;
+    votingDurationMin?: number;
+  }
+): Promise<{ schedule: Schedule }> {
+  return request(`/groups/${groupId}/schedules`, { method: 'POST', token, payload });
+}
+
+export async function deleteSchedule(token: string, groupId: string, scheduleId: string): Promise<void> {
+  return request(`/groups/${groupId}/schedules`, {
+    method: 'DELETE',
+    token,
+    params: { scheduleId },
+  });
+}
