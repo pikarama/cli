@@ -5,6 +5,21 @@ export interface OutputOptions {
   quiet?: boolean;
 }
 
+export function getCommandOptions<T extends object>(options: unknown): T {
+  if (options && typeof options === 'object') {
+    const maybeCommand = options as Command & { optsWithGlobals?: () => T };
+    if (typeof maybeCommand.optsWithGlobals === 'function') {
+      return maybeCommand.optsWithGlobals();
+    }
+    if (typeof maybeCommand.opts === 'function') {
+      return maybeCommand.opts() as T;
+    }
+    return options as T;
+  }
+
+  return {} as T;
+}
+
 export function addOutputOptions(cmd: Command): void {
   cmd.option('-j, --json', 'Output raw JSON from the API')
     .option('-q, --quiet', 'Minimal output (just IDs or status)');

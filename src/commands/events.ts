@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { addOutputOptions, handleOutput, OutputOptions } from '../output.js';
+import { addOutputOptions, getCommandOptions, handleOutput, OutputOptions } from '../output.js';
 import { wrapAction } from '../errors.js';
 import { requireToken, extractList, extractResource } from '../utils.js';
 import {
@@ -31,7 +31,7 @@ export function createEventsCommand(): Command {
 
   cmd.action(
     wrapAction(async (options) => {
-      const opts = options as OutputOptions & { status?: string };
+      const opts = getCommandOptions<OutputOptions & { status?: string }>(options);
       const token = await requireToken();
       const payload = await listEvents(token, opts.status);
       const events = extractList<EventSummary>(payload, ['events', 'data']);
@@ -96,7 +96,7 @@ export function createEventsCommand(): Command {
   addOutputOptions(showCmd);
   showCmd.action(
     wrapAction(async (eventId, options) => {
-      const opts = options as OutputOptions;
+      const opts = getCommandOptions<OutputOptions>(options);
       const token = await requireToken();
       
       // Interactive: select event if not provided
@@ -124,7 +124,7 @@ export function createEventsCommand(): Command {
   addOutputOptions(createCmd);
   createCmd.action(
     wrapAction(async (topicId, name, options) => {
-      const opts = options as OutputOptions;
+      const opts = getCommandOptions<OutputOptions>(options);
       const token = await requireToken();
       
       let topicValue = topicId ? String(topicId) : null;
@@ -168,7 +168,7 @@ export function createEventsCommand(): Command {
   addOutputOptions(submitCmd);
   submitCmd.action(
     wrapAction(async (eventId, pick, options) => {
-      const opts = options as OutputOptions;
+      const opts = getCommandOptions<OutputOptions>(options);
       const token = await requireToken();
       
       let id = eventId ? String(eventId) : null;
@@ -201,7 +201,7 @@ export function createEventsCommand(): Command {
   addOutputOptions(voteCmd);
   voteCmd.action(
     wrapAction(async (eventId, submissionId, options) => {
-      const opts = options as OutputOptions;
+      const opts = getCommandOptions<OutputOptions>(options);
       const token = await requireToken();
       
       let id = eventId ? String(eventId) : null;
@@ -239,7 +239,7 @@ export function createEventsCommand(): Command {
   addOutputOptions(advanceCmd);
   advanceCmd.action(
     wrapAction(async (eventId, options) => {
-      const opts = options as OutputOptions;
+      const opts = getCommandOptions<OutputOptions>(options);
       const token = await requireToken();
       
       let id = eventId ? String(eventId) : null;

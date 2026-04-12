@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { addOutputOptions, handleOutput, OutputOptions } from '../output.js';
+import { addOutputOptions, getCommandOptions, handleOutput, OutputOptions } from '../output.js';
 import { wrapAction } from '../errors.js';
 import { requireToken } from '../utils.js';
 import { getMe, MeResponse } from '../api.js';
@@ -11,7 +11,7 @@ export function createMeCommand(): Command {
 
   cmd.action(
     wrapAction(async (options) => {
-      const opts = options as OutputOptions;
+      const opts = getCommandOptions<OutputOptions>(options);
       const token = await requireToken();
       const data = await getMe(token);
 

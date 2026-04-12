@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { addOutputOptions, handleOutput, OutputOptions } from '../output.js';
+import { addOutputOptions, getCommandOptions, handleOutput, OutputOptions } from '../output.js';
 import { wrapAction } from '../errors.js';
 import { requireToken, extractList, extractResource } from '../utils.js';
 import { Group, listGroups, getGroup, createGroup, joinGroup } from '../api.js';
@@ -12,7 +12,7 @@ export function createGroupsCommand(): Command {
 
   cmd.action(
     wrapAction(async (options) => {
-      const opts = options as OutputOptions;
+      const opts = getCommandOptions<OutputOptions>(options);
       const token = await requireToken();
       const payload = await listGroups(token);
       const groups = extractList<Group>(payload, ['groups', 'data']);
@@ -58,7 +58,7 @@ export function createGroupsCommand(): Command {
   addOutputOptions(showCmd);
   showCmd.action(
     wrapAction(async (groupId, options) => {
-      const opts = options as OutputOptions;
+      const opts = getCommandOptions<OutputOptions>(options);
       const token = await requireToken();
       
       let id = groupId ? String(groupId) : null;
@@ -83,7 +83,7 @@ export function createGroupsCommand(): Command {
   addOutputOptions(createCmd);
   createCmd.action(
     wrapAction(async (name, options) => {
-      const opts = options as OutputOptions;
+      const opts = getCommandOptions<OutputOptions>(options);
       const token = await requireToken();
       
       let groupName = name ? String(name) : null;
@@ -120,7 +120,7 @@ export function createGroupsCommand(): Command {
   addOutputOptions(joinCmd);
   joinCmd.action(
     wrapAction(async (code, options) => {
-      const opts = options as OutputOptions;
+      const opts = getCommandOptions<OutputOptions>(options);
       const token = await requireToken();
       
       let inviteCode = code ? String(code) : null;

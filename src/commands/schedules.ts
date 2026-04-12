@@ -4,7 +4,7 @@
  */
 
 import { Command } from 'commander';
-import { addOutputOptions, handleOutput, OutputOptions } from '../output.js';
+import { addOutputOptions, getCommandOptions, handleOutput, OutputOptions } from '../output.js';
 import { wrapAction } from '../errors.js';
 import { requireToken } from '../utils.js';
 
@@ -34,7 +34,7 @@ export function createSchedulesCommand(): Command {
 
   listCmd.action(
     wrapAction(async (groupId, options) => {
-      const opts = options as OutputOptions;
+      const opts = getCommandOptions<OutputOptions>(options);
       const token = await requireToken();
 
       const response = await fetch(`${API_BASE}/groups/${groupId}/schedules`, {
@@ -97,13 +97,13 @@ export function createSchedulesCommand(): Command {
 
   createCmd.action(
     wrapAction(async (groupId, options) => {
-      const opts = options as OutputOptions & {
+      const opts = getCommandOptions<OutputOptions & {
         topic: string;
         name: string;
         cron: string;
         submission: string;
         voting: string;
-      };
+      }>(options);
       const token = await requireToken();
 
       const response = await fetch(`${API_BASE}/groups/${groupId}/schedules`, {
