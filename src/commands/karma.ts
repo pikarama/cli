@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { addOutputOptions, handleOutput, OutputOptions } from '../output.js';
+import { addOutputOptions, getCommandOptions, handleOutput, OutputOptions } from '../output.js';
 import { wrapAction } from '../errors.js';
 import { requireToken, extractList } from '../utils.js';
 import { getKarma, KarmaEntry } from '../api.js';
@@ -13,7 +13,7 @@ export function createKarmaCommand(): Command {
   cmd.action(
     wrapAction(async (groupId, options) => {
       const groupValue = typeof groupId === 'undefined' ? undefined : String(groupId);
-      const opts = options as OutputOptions;
+      const opts = getCommandOptions<OutputOptions>(options);
       const token = await requireToken();
       const payload = await getKarma(token, groupValue);
       const entries = extractList<KarmaEntry>(payload, ['karma', 'entries', 'data']);

@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { addOutputOptions, handleOutput, OutputOptions } from '../output.js';
+import { addOutputOptions, getCommandOptions, handleOutput, OutputOptions } from '../output.js';
 import { wrapAction, CliError } from '../errors.js';
 import { requireToken, extractResource } from '../utils.js';
 import { createPoll, PollResult, PollOption } from '../api.js';
@@ -23,7 +23,7 @@ export function createPollCommand(): Command {
 
   cmd.action(
     wrapAction(async (topicId, question, options) => {
-      const opts = options as PollCommandOptions;
+      const opts = getCommandOptions<PollCommandOptions>(options);
       const token = await requireToken();
       
       let topicValue = topicId ? String(topicId) : null;
