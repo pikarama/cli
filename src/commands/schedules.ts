@@ -15,7 +15,14 @@ interface Schedule {
   event_name: string;
   topic_name: string;
   topic_icon: string;
-  recurrence_cron: string;
+  topic_group_id: string;
+  recurrence_rrule: string;
+  recurrence_summary?: string;
+  recurrence_dtstart?: string;
+  recurrence_timezone?: string;
+  next_submission_at?: string;
+  next_voting_at?: string;
+  next_occurrences?: string[];
   submission_duration_min: number;
   voting_duration_min: number;
   recurrence_active: boolean;
@@ -48,7 +55,7 @@ export function createSchedulesCommand(): Command {
           console.log(`Upgrade at: https://www.pikarama.com/groups/${groupId}/settings/billing`);
           return;
         }
-        throw new Error(error.error || 'Failed to fetch schedules');
+        throw new Error(error.error || error.message || 'Failed to fetch schedules');
       }
 
       const data = await response.json();
@@ -67,7 +74,8 @@ export function createSchedulesCommand(): Command {
               ID: s.id,
               Name: s.event_name,
               Topic: s.topic_name,
-              Cron: s.recurrence_cron,
+              Schedule: s.recurrence_summary || s.recurrence_rrule,
+              Timezone: s.recurrence_timezone || 'UTC',
               Submission: `${s.submission_duration_min}m`,
               Voting: `${s.voting_duration_min}m`,
             }))
@@ -90,7 +98,9 @@ export function createSchedulesCommand(): Command {
   createCmd.argument('<groupId>', 'Group ID');
   createCmd.requiredOption('-t, --topic <topicId>', 'Topic ID');
   createCmd.requiredOption('-n, --name <name>', 'Event name');
-  createCmd.requiredOption('-c, --cron <expression>', 'Cron expression (minute hour * * day-of-week)');
+  createCmd.requiredOption('-r, --rrule <rrule>', 'RRULE expression with BYHOUR and BYMINUTE');
+  createCmd.option('--dtstart <isoDate>', 'Optional DTSTART/first occurrence seed as ISO date');
+  createCmd.option('--timezone <timezone>', 'IANA timezone for wall-clock recurrence', 'UTC');
   createCmd.option('-s, --submission <minutes>', 'Minutes before event to open submissions', '60');
   createCmd.option('-v, --voting <minutes>', 'Minutes before event for voting window', '30');
   addOutputOptions(createCmd);
@@ -100,7 +110,9 @@ export function createSchedulesCommand(): Command {
       const opts = getCommandOptions<OutputOptions & {
         topic: string;
         name: string;
-        cron: string;
+        rrule: string;
+        dtstart?: string;
+        timezone: string;
         submission: string;
         voting: string;
       }>(options);
@@ -115,7 +127,9 @@ export function createSchedulesCommand(): Command {
         body: JSON.stringify({
           topicGroupId: opts.topic,
           eventName: opts.name,
-          recurrenceCron: opts.cron,
+          recurrenceRRule: opts.rrule,
+          ...(opts.dtstart ? { recurrenceDtStart: opts.dtstart } : {}),
+          parseTimezone: opts.timezone,
           submissionDurationMin: parseInt(opts.submission),
           votingDurationMin: parseInt(opts.voting),
         }),
@@ -131,7 +145,7 @@ export function createSchedulesCommand(): Command {
           console.log(`📊 Schedule limit reached (${error.currentCount}/${error.limit}). Upgrade to Pro for unlimited.`);
           return;
         }
-        throw new Error(error.error || 'Failed to create schedule');
+        throw new Error(error.error || error.message || 'Failed to create schedule');
       }
 
       const data = await response.json();
@@ -161,7 +175,7 @@ export function createSchedulesCommand(): Command {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Failed to delete schedule');
+        throw new Error(error.error || error.message || 'Failed to delete schedule');
       }
 
       console.log('✓ Schedule deleted');

@@ -211,16 +211,21 @@ export interface Schedule {
   topic_name: string;
   topic_icon: string;
   topic_group_id: string;
-  recurrence_cron: string;
+  recurrence_rrule: string;
+  recurrence_summary?: string;
+  recurrence_dtstart?: string;
+  recurrence_timezone?: string;
+  next_submission_at?: string;
+  next_voting_at?: string;
+  next_occurrences?: string[];
   submission_duration_min: number;
   voting_duration_min: number;
   recurrence_active: boolean;
-  next_run?: string;
 }
 
 export interface SchedulesResponse {
   schedules: Schedule[];
-  usage?: { count: number; limit: number | null };
+  usage?: { count: number; limit: number | null; canAdd?: boolean };
   upgradeRequired?: boolean;
 }
 
@@ -234,7 +239,9 @@ export async function createSchedule(
   payload: {
     topicGroupId: string;
     eventName: string;
-    recurrenceCron: string;
+    recurrenceRRule: string;
+    recurrenceDtStart?: string;
+    parseTimezone?: string;
     submissionDurationMin?: number;
     votingDurationMin?: number;
   }

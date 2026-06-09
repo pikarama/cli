@@ -259,7 +259,7 @@ async function browseSchedules(token: string): Promise<void> {
         options.push({
           value: s.id,
           label: `${status} ${icon} ${s.event_name}`,
-          hint: formatCron(s.recurrence_cron),
+          hint: s.recurrence_summary || s.recurrence_rrule,
         });
       });
     } else {
@@ -325,26 +325,26 @@ async function createScheduleFlow(token: string, groupId: string): Promise<void>
   const scheduleChoice = await p.select({
     message: 'When should this recur?',
     options: [
-      { value: '0 18 * * 5', label: '🎬 Every Friday 6pm', hint: 'Movie night classic' },
-      { value: '0 12 * * 0', label: '🍳 Every Sunday noon', hint: 'Weekend brunch' },
-      { value: '0 19 * * 1-5', label: '🍽️ Weekdays 7pm', hint: 'Dinner decisions' },
-      { value: '0 10 * * 6', label: '☕ Every Saturday 10am', hint: 'Weekend morning' },
-      { value: '_custom', label: '⚙️ Custom cron', hint: 'Enter your own schedule' },
+      { value: 'FREQ=WEEKLY;BYDAY=FR;BYHOUR=18;BYMINUTE=0;BYSECOND=0', label: '🎬 Every Friday 6pm', hint: 'Movie night classic' },
+      { value: 'FREQ=WEEKLY;BYDAY=SU;BYHOUR=12;BYMINUTE=0;BYSECOND=0', label: '🍳 Every Sunday noon', hint: 'Weekend brunch' },
+      { value: 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=19;BYMINUTE=0;BYSECOND=0', label: '🍽️ Weekdays 7pm', hint: 'Dinner decisions' },
+      { value: 'FREQ=WEEKLY;BYDAY=SA;BYHOUR=10;BYMINUTE=0;BYSECOND=0', label: '☕ Every Saturday 10am', hint: 'Weekend morning' },
+      { value: '_custom', label: '⚙️ Custom RRULE', hint: 'Enter your own recurrence rule' },
     ],
   });
 
   if (p.isCancel(scheduleChoice)) return;
 
-  let cron = scheduleChoice as string;
+  let rrule = scheduleChoice as string;
 
   if (scheduleChoice === '_custom') {
-    const customCron = await p.text({
-      message: 'Cron expression (minute hour * * day)',
-      placeholder: '0 18 * * 5 = Friday 6pm',
+    const customRRule = await p.text({
+      message: 'RRULE expression',
+      placeholder: 'FREQ=WEEKLY;BYDAY=FR;BYHOUR=18;BYMINUTE=0;BYSECOND=0',
     });
 
-    if (p.isCancel(customCron) || !customCron) return;
-    cron = customCron as string;
+    if (p.isCancel(customRRule) || !customRRule) return;
+    rrule = customRRule as string;
   }
 
   // Timing options
@@ -371,7 +371,8 @@ async function createScheduleFlow(token: string, groupId: string): Promise<void>
     const result = await createSchedule(token, groupId, {
       topicGroupId: topicId as string,
       eventName: eventName as string,
-      recurrenceCron: cron,
+      recurrenceRRule: rrule,
+      parseTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
       submissionDurationMin: parseInt(submissionMin as string) || 60,
       votingDurationMin: parseInt(votingMin as string) || 30,
     });
@@ -433,32 +434,15 @@ async function scheduleActionsFlow(token: string, groupId: string, schedule: Sch
 function showScheduleDetails(schedule: Schedule): void {
   p.log.info(`\n📅 ${schedule.event_name}`);
   p.log.info(`Topic: ${schedule.topic_icon || '📋'} ${schedule.topic_name}`);
-  p.log.info(`Schedule: ${formatCron(schedule.recurrence_cron)}`);
-  p.log.info(`Cron: ${schedule.recurrence_cron}`);
+  p.log.info(`Schedule: ${schedule.recurrence_summary || schedule.recurrence_rrule}`);
+  p.log.info(`RRULE: ${schedule.recurrence_rrule}`);
+  p.log.info(`Timezone: ${schedule.recurrence_timezone || 'UTC'}`);
   p.log.info(`Submission window: ${schedule.submission_duration_min} minutes`);
   p.log.info(`Voting window: ${schedule.voting_duration_min} minutes`);
   p.log.info(`Status: ${schedule.recurrence_active ? '🟢 Active' : '⏸️ Paused'}`);
-  if (schedule.next_run) {
-    p.log.info(`Next run: ${schedule.next_run}`);
+  if (schedule.next_occurrences?.length) {
+    p.log.info(`Next occurrences: ${schedule.next_occurrences.join(', ')}`);
   }
-}
-
-function formatCron(cron: string): string {
-  // Basic cron to human-readable
-  const parts = cron.split(' ');
-  if (parts.length < 5) return cron;
-
-  const [minute, hour, , , dayOfWeek] = parts;
-  const days: Record<string, string> = {
-    '0': 'Sun', '1': 'Mon', '2': 'Tue', '3': 'Wed',
-    '4': 'Thu', '5': 'Fri', '6': 'Sat', '7': 'Sun',
-    '*': 'Daily', '1-5': 'Weekdays', '0,6': 'Weekends',
-  };
-
-  const dayText = days[dayOfWeek] || dayOfWeek;
-  const timeText = `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
-
-  return `${dayText} @ ${timeText}`;
 }
 
 // ============ Events Flow ============

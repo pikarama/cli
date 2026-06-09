@@ -64,6 +64,18 @@ pikarama karma                     # Show karma across all topics
 pikarama karma <group-id>          # Filter by group
 ```
 
+### Schedules
+```bash
+pikarama schedules list <group-id> --json
+pikarama schedules create <group-id> \
+  --topic <topic-id> \
+  --name "Friday Lunch" \
+  --rrule "FREQ=WEEKLY;BYDAY=FR;BYHOUR=12;BYMINUTE=0;BYSECOND=0" \
+  --timezone Europe/Prague \
+  --json
+pikarama schedules delete <group-id> <schedule-id>
+```
+
 ### Auth
 ```bash
 pikarama login                     # Store API token
