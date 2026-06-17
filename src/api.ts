@@ -76,6 +76,7 @@ export interface Group {
 export interface EventSummary {
   id: string;
   name?: string;
+  description?: string | null;
   status?: string;
   topic?: { id: string; name?: string };
   group?: { id: string; name?: string };
@@ -88,6 +89,7 @@ export interface EventDetail extends EventSummary {
 export interface Submission {
   id: string;
   title?: string;
+  description?: string | null;
   by?: string;
   user?: { id: string; name?: string };
   votes?: number;
@@ -103,9 +105,16 @@ export interface PollResult {
 }
 
 export interface PollOption {
-  id: string;
+  id?: string;
   label?: string;
+  title?: string;
+  description?: string | null;
   votes?: number;
+}
+
+export interface PollOptionInput {
+  title: string;
+  description?: string | null;
 }
 
 export interface KarmaEntry {
@@ -144,12 +153,12 @@ export async function getEvent(token: string, eventId: string): Promise<unknown>
   return request(`/events/${eventId}`, { method: 'GET', token });
 }
 
-export async function createEvent(token: string, topicId: string, name: string): Promise<unknown> {
-  return request('/events', { method: 'POST', token, payload: { topicId, name } });
+export async function createEvent(token: string, topicId: string, name: string, description?: string): Promise<unknown> {
+  return request('/events', { method: 'POST', token, payload: { topicId, name, description } });
 }
 
-export async function submitPick(token: string, eventId: string, title: string): Promise<unknown> {
-  return request(`/events/${eventId}/submit`, { method: 'POST', token, payload: { title } });
+export async function submitPick(token: string, eventId: string, title: string, description?: string): Promise<unknown> {
+  return request(`/events/${eventId}/submit`, { method: 'POST', token, payload: { title, description } });
 }
 
 export async function voteForSubmission(token: string, eventId: string, submissionId: string): Promise<unknown> {
@@ -172,11 +181,17 @@ export async function advanceEvent(token: string, eventId: string): Promise<unkn
   return request(`/events/${eventId}/advance`, { method: 'POST', token });
 }
 
-export async function createPoll(token: string, topicId: string, name: string, pollOptions: string[]): Promise<unknown> {
+export async function createPoll(
+  token: string,
+  topicId: string,
+  name: string,
+  pollOptions: Array<string | PollOptionInput>,
+  description?: string
+): Promise<unknown> {
   return request('/events', {
     method: 'POST',
     token,
-    payload: { topicId, name, isPoll: true, pollOptions },
+    payload: { topicId, name, description, isPoll: true, pollOptions },
   });
 }
 
