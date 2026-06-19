@@ -120,11 +120,12 @@ export function createEventsCommand(): Command {
 
   const createCmd = cmd
     .command('create [topicId] [name]')
-    .description('Create a new event in a topic');
+    .description('Create a new event in a topic')
+    .option('-d, --description <description>', 'Short optional event description (max 240 chars)');
   addOutputOptions(createCmd);
   createCmd.action(
     wrapAction(async (topicId, name, options) => {
-      const opts = getCommandOptions<OutputOptions>(options);
+      const opts = getCommandOptions<OutputOptions & { description?: string }>(options);
       const token = await requireToken();
       
       let topicValue = topicId ? String(topicId) : null;
@@ -150,7 +151,7 @@ export function createEventsCommand(): Command {
         return;
       }
 
-      const payload = await createEvent(token, topicValue, eventName);
+      const payload = await createEvent(token, topicValue, eventName, opts.description);
       const event = extractResource<EventDetail>(payload, ['event']);
 
       handleOutput(
@@ -164,11 +165,12 @@ export function createEventsCommand(): Command {
 
   const submitCmd = cmd
     .command('submit [eventId] [pick]')
-    .description('Submit a pick for an event');
+    .description('Submit a pick for an event')
+    .option('-d, --description <description>', 'Short optional pick description (max 120 chars)');
   addOutputOptions(submitCmd);
   submitCmd.action(
     wrapAction(async (eventId, pick, options) => {
-      const opts = getCommandOptions<OutputOptions>(options);
+      const opts = getCommandOptions<OutputOptions & { description?: string }>(options);
       const token = await requireToken();
       
       let id = eventId ? String(eventId) : null;
@@ -190,7 +192,7 @@ export function createEventsCommand(): Command {
         return;
       }
 
-      await submitPick(token, id, pickValue);
+      await submitPick(token, id, pickValue, opts.description);
       if (!opts.quiet) p.log.success('Pick submitted!');
     })
   );
@@ -264,6 +266,7 @@ export function createEventsCommand(): Command {
 function showEventDetails(event: EventDetail): void {
   console.log();
   console.log(`📋 ${event.name ?? 'Untitled'}`);
+  if (event.description) console.log(`   ${event.description}`);
   console.log(`   Status: ${event.status ?? 'Unknown'}`);
   console.log(`   Topic:  ${event.topic?.name ?? 'Unknown'}`);
   if (event.submissions && event.submissions.length) {
@@ -273,6 +276,7 @@ function showEventDetails(event: EventDetail): void {
       const votes = submission.voteCount ?? submission.votes ?? 0;
       const winner = submission.isWinner ? ' 🏆' : '';
       console.log(`     • ${submission.title ?? '—'} (by ${owner}, votes: ${votes})${winner}`);
+      if (submission.description) console.log(`       ${submission.description}`);
     });
   } else {
     console.log('   Submissions: None yet');

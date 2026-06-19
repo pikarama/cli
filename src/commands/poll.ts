@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { addOutputOptions, getCommandOptions, handleOutput, OutputOptions } from '../output.js';
 import { wrapAction, CliError } from '../errors.js';
 import { requireToken, extractResource } from '../utils.js';
-import { createPoll, PollResult, PollOption } from '../api.js';
+import { createPoll, PollResult, PollOption, PollOptionInput } from '../api.js';
 import { selectGroup, selectTopic, promptText, multiText, p } from '../interactive.js';
 
 function collectOption(value: string, previous: string[]) {
@@ -11,6 +11,8 @@ function collectOption(value: string, previous: string[]) {
 
 interface PollCommandOptions extends OutputOptions {
   option?: string[];
+  optionDescription?: string[];
+  description?: string;
 }
 
 export function createPollCommand(): Command {
@@ -19,6 +21,8 @@ export function createPollCommand(): Command {
   cmd.argument('[topicId]', 'Topic ID');
   cmd.argument('[question]', 'Poll question');
   cmd.option('-o, --option <option>', 'Poll option (repeat for multiple)', collectOption, []);
+  cmd.option('-d, --description <description>', 'Short optional poll description (max 240 chars)');
+  cmd.option('--option-description <description>', 'Description for the corresponding --option (repeat in the same order)', collectOption, []);
   addOutputOptions(cmd);
 
   cmd.action(
@@ -62,7 +66,12 @@ export function createPollCommand(): Command {
         throw new CliError('Please provide at least two poll options.');
       }
 
-      const payload = await createPoll(token, topicValue, pollQuestion, choices);
+      const optionPayload: PollOptionInput[] = choices.map((choice, index) => ({
+        title: choice,
+        description: opts.optionDescription?.[index],
+      }));
+
+      const payload = await createPoll(token, topicValue, pollQuestion, optionPayload, opts.description);
       const poll = extractResource<PollResult>(payload, ['poll', 'event']);
 
       handleOutput(
@@ -73,7 +82,9 @@ export function createPollCommand(): Command {
           console.log(`\n📊 ${pollQuestion}`);
           if (value.options?.length) {
             value.options.forEach((option: PollOption, index: number) => {
-              console.log(`   ${index + 1}. ${option.label ?? option.id ?? 'Option'}`);
+              const label = option.label ?? option.title ?? option.id ?? 'Option';
+              console.log(`   ${index + 1}. ${label}`);
+              if (option.description) console.log(`      ${option.description}`);
             });
           } else {
             choices.forEach((choice, index) => {
